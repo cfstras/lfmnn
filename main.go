@@ -10,7 +10,7 @@ import (
 )
 
 type Main struct {
-	loader load.Loader
+	loader *load.Loader
 	config map[string]string
 }
 

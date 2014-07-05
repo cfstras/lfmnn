@@ -13,18 +13,6 @@ import (
 	"github.com/skratchdot/open-golang/open"
 )
 
-type Loader interface {
-	Auth()
-
-	// Loads tracks as far as the eye can see.
-	// Returns the number of tracks loaded
-	LoadTracks() int
-	// Loads all tracks from config
-	Load()
-	// Save current state
-	Save()
-}
-
 type Track struct {
 	Artist, ArtistMBID string
 	Name               string
@@ -34,44 +22,41 @@ type Track struct {
 	Date               time.Time
 }
 
+// sort interface
 type Tracks []Track
 
 func (t Tracks) Len() int           { return len(t) }
 func (t Tracks) Less(i, j int) bool { return t[i].Date.Before(t[j].Date) }
 func (t Tracks) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
 
-type Data struct {
-	Tracks                   []Track
-	times                    map[time.Time]int
-	NewestTrack, OldestTrack time.Time
-	TotalTracks              int
-	LoadedTracks             int
-}
-
-type loader struct {
+type Loader struct {
 	apikey, secret string
 	username       string
 	filename       string
 	api            *lastfm.Api
 
-	Data
+	times map[time.Time]int
+
+	Tracks                   []Track
+	NewestTrack, OldestTrack time.Time
+	TotalTracks              int
+	LoadedTracks             int
 }
 
-func NewLoader(username, apikey, secret string) Loader {
-	l := &loader{apikey: apikey, secret: secret,
+func NewLoader(username, apikey, secret string) *Loader {
+	l := &Loader{apikey: apikey, secret: secret,
 		username: username,
 		filename: "tracks-" + username + ".json",
-		Data: Data{
-			times:       make(map[time.Time]int),
-			OldestTrack: time.Now(),
-		},
+
+		times:       make(map[time.Time]int),
+		OldestTrack: time.Now(),
 	}
 
 	l.api = lastfm.New(apikey, secret)
 	return l
 }
 
-func (l *loader) Auth() {
+func (l *Loader) Auth() {
 	token, err := l.api.GetToken()
 	p(err)
 	authUrl := l.api.GetAuthTokenUrl(token)
@@ -84,13 +69,14 @@ func (l *loader) Auth() {
 	p(err)
 }
 
-func (l *loader) Load() {
+// Loads all tracks from config
+func (l *Loader) Load() {
 	if _, err := os.Stat(l.filename); os.IsNotExist(err) {
 		return
 	}
 	b, err := ioutil.ReadFile(l.filename)
 	p(err)
-	p(json.Unmarshal(b, &l.Data))
+	p(json.Unmarshal(b, &l))
 
 	// build date index
 	for i, t := range l.Tracks {
@@ -98,13 +84,16 @@ func (l *loader) Load() {
 	}
 }
 
-func (l *loader) Save() {
-	b, err := json.MarshalIndent(l.Data, "", "  ")
+// Save current state
+func (l *Loader) Save() {
+	b, err := json.MarshalIndent(l, "", "  ")
 	p(err)
 	p(ioutil.WriteFile(l.filename, b, 0666))
 }
 
-func (l *loader) LoadTracks() int {
+// Loads tracks as far as the eye can see.
+// Returns the number of tracks loaded
+func (l *Loader) LoadTracks() int {
 	fmt.Println("Loading tracks")
 
 	total := 0
@@ -145,7 +134,7 @@ func (l *loader) LoadTracks() int {
 
 // returns (gotThisTime, numPages)
 // totalPages is just for display
-func (l *loader) loadTracks(doFrom bool, timeFromTo time.Time, page int, totalPages int) (int, int) {
+func (l *Loader) loadTracks(doFrom bool, timeFromTo time.Time, page int, totalPages int) (int, int) {
 	props := lastfm.P{
 		"limit": 200,
 		"user":  l.username,
