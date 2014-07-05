@@ -35,10 +35,9 @@ func main() {
 func (m *Main) LoadConfig() {
 	// defaults
 	defaults := map[string]string{
-		"apikey":    "",
-		"secret":    "",
-		"numTracks": "0",
-		"username":  "",
+		"apikey":   "",
+		"secret":   "",
+		"username": "",
 	}
 	if _, err := os.Stat("config.json"); os.IsNotExist(err) {
 		m.config = defaults
