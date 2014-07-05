@@ -1,0 +1,11 @@
+tracks-*.json
+config.json
+
+bin/
+pkg/
+
+mine/
+py/
+
+src/code.google.com/
+src/github.com/
