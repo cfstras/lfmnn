@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"time"
 
 	"github.com/cfstras/lfmnn/load"
 )
@@ -17,28 +16,35 @@ type Main struct {
 
 func main() {
 	var m Main
+
 	m.LoadConfig()
 	defer m.SaveConfig()
-	m.loader = load.NewLoader(m.config["apikey"], m.config["secret"])
 
+	if m.config["username"] == "" {
+		fmt.Println("Please set a username in config.json")
+		return
+	}
+	m.loader = load.NewLoader(m.config["username"], m.config["apikey"], m.config["secret"])
+	//m.loader.Auth() // not needed
+	m.loader.Load()
+	defer m.loader.Save()
+
+	m.loader.LoadTracks()
 }
 
 func (m *Main) LoadConfig() {
 	// defaults
 	defaults := map[string]string{
-		"apikey":        "",
-		"secret":        "",
-		"earliestTrack": fmt.Sprint(time.Now().Unix()),
-		"numTracks":     "0",
+		"apikey":    "",
+		"secret":    "",
+		"numTracks": "0",
+		"username":  "",
 	}
 	if _, err := os.Stat("config.json"); os.IsNotExist(err) {
 		m.config = defaults
 		return
 	}
-	f, err := os.Open("config.json")
-	p(err)
-	defer f.Close()
-	b, err := ioutil.ReadAll(f)
+	b, err := ioutil.ReadFile("config.json")
 	p(err)
 	err = json.Unmarshal(b, &m.config)
 	p(err)
@@ -51,14 +57,9 @@ func (m *Main) LoadConfig() {
 }
 
 func (m *Main) SaveConfig() {
-	f, err := os.Create("config.json")
-	p(err)
-	defer f.Close()
-
 	b, err := json.MarshalIndent(m.config, "", "  ")
 	p(err)
-	_, err = f.Write(b)
-	p(err)
+	p(ioutil.WriteFile("config.json", b, 0666))
 }
 
 func p(err error) {
