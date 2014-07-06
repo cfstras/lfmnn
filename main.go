@@ -29,7 +29,11 @@ func main() {
 	m.loader.Load()
 	defer m.loader.Save()
 
+	wait := make(chan bool)
+	m.loader.StartLoadingTags(wait)
 	m.loader.LoadTracks()
+
+	<-wait
 }
 
 func (m *Main) LoadConfig() {
