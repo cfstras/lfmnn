@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/shkh/lastfm-go/lastfm"
@@ -19,28 +19,25 @@ type Track struct {
 	MBID               string
 	Album, AlbumMBID   string
 	URL                string
-	Date               time.Time
 }
-
-// sort interface
-type Tracks []Track
-
-func (t Tracks) Len() int           { return len(t) }
-func (t Tracks) Less(i, j int) bool { return t[i].Date.Before(t[j].Date) }
-func (t Tracks) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
 
 type Loader struct {
 	apikey, secret string
 	username       string
 	filename       string
 	api            *lastfm.Api
+	requestToken   <-chan bool
 
-	times map[time.Time]int
+	Tracks []Track
+	// index (url fragment) -> tracks[index]
+	TracksMap map[string]int
+	// index unixtime -> tracks[index]
+	Scrobbles map[int64]int `json:"-"`
 
-	Tracks                   []Track
 	NewestTrack, OldestTrack time.Time
-	TotalTracks              int
-	LoadedTracks             int
+
+	// for json
+	ScrobblesJSON map[string]int `json:"Scrobbles"`
 }
 
 func NewLoader(username, apikey, secret string) *Loader {
@@ -48,11 +45,29 @@ func NewLoader(username, apikey, secret string) *Loader {
 		username: username,
 		filename: "tracks-" + username + ".json",
 
-		times:       make(map[time.Time]int),
+		TracksMap:   make(map[string]int),
+		Scrobbles:   make(map[int64]int),
 		OldestTrack: time.Now(),
 	}
 
 	l.api = lastfm.New(apikey, secret)
+
+	// limit outgoing requests
+	tokens := make(chan bool, 20)
+	go func(in <-chan time.Time, out chan<- bool) {
+		// every second,
+		for _ = range in {
+			// try to add 5 tokens
+			for i := 0; i < 5; i++ {
+				select {
+				case tokens <- true:
+				default:
+				}
+			}
+		}
+	}(time.Tick(time.Second), tokens)
+	l.requestToken = tokens
+
 	return l
 }
 
@@ -65,7 +80,7 @@ func (l *Loader) Auth() {
 	fmt.Println("Please accept the request in the opened browser window.")
 	fmt.Println("Once done, press enter here.")
 	fmt.Fscanln(os.Stdin)
-	err = l.api.LoginWithToken(token) //discarding error
+	err = l.api.LoginWithToken(token)
 	p(err)
 }
 
@@ -78,14 +93,23 @@ func (l *Loader) Load() {
 	p(err)
 	p(json.Unmarshal(b, &l))
 
-	// build date index
-	for i, t := range l.Tracks {
-		l.times[t.Date] = i
+	// convert times back to int64s
+	l.Scrobbles = make(map[int64]int)
+	for k, v := range l.ScrobblesJSON {
+		i, err := strconv.ParseInt(k, 10, 64)
+		p(err)
+		l.Scrobbles[i] = v
 	}
 }
 
 // Save current state
 func (l *Loader) Save() {
+	// convert times to strings
+	l.ScrobblesJSON = make(map[string]int)
+	for k, v := range l.Scrobbles {
+		l.ScrobblesJSON[fmt.Sprint(k)] = v
+	}
+
 	b, err := json.MarshalIndent(l, "", "  ")
 	p(err)
 	p(ioutil.WriteFile(l.filename, b, 0666))
@@ -105,6 +129,10 @@ func (l *Loader) LoadTracks() int {
 	// fetch up until the oldest track we have
 	for got > 0 {
 		got, pages = l.loadTracks(false, t, page, pages)
+		if got == -1 && pages == -1 {
+			got = 1
+			continue //retry
+		}
 		page++
 		total += got
 	}
@@ -116,20 +144,55 @@ func (l *Loader) LoadTracks() int {
 	// fetch up behind the latest track we have
 	for got > 0 {
 		got, pages = l.loadTracks(true, t, page, pages)
+		if got == -1 && pages == -1 {
+			got = 1
+			continue //retry
+		}
+		page++
 		total += got
 	}
-
-	sort.Sort(sort.Reverse(Tracks(l.Tracks)))
 
 	// print stats
 	fmt.Println("----")
 	fmt.Println("Total tracks:    ", len(l.Tracks))
+	fmt.Println("Total scrobbles: ", len(l.Scrobbles))
 	fmt.Println("Newly downloaded:", total)
-	fmt.Println("First track:     ", l.OldestTrack)
-	fmt.Println("Last track:      ", l.NewestTrack)
+	fmt.Println("First scrobble:  ", l.OldestTrack)
+	fmt.Println("Last scrobble:   ", l.NewestTrack)
 	fmt.Println("----")
 
 	return got
+}
+
+func (l *Loader) AddScrobble(track Track, date time.Time) bool {
+	// ignore duplicates by time
+	_, dup := l.Scrobbles[date.Unix()]
+	if dup {
+		return false
+	}
+
+	// find track
+	// cut "http://www.last.fm/music/", "+noredirect/"
+	fragment := strings.TrimPrefix(track.URL, "http://www.last.fm/music/")
+	fragment = strings.TrimPrefix(fragment, "+noredirect/")
+	ind, ok := l.TracksMap[fragment]
+	if !ok {
+		ind = len(l.Tracks)
+		l.Tracks = append(l.Tracks, track)
+		l.TracksMap[fragment] = ind
+	}
+
+	// add to index
+	l.Scrobbles[date.Unix()] = ind
+
+	// keep newest&oldest up to date
+	if date.After(l.NewestTrack) {
+		l.NewestTrack = date
+	}
+	if date.Before(l.OldestTrack) {
+		l.OldestTrack = date
+	}
+	return true
 }
 
 // returns (gotThisTime, numPages)
@@ -147,12 +210,14 @@ func (l *Loader) loadTracks(doFrom bool, timeFromTo time.Time, page int, totalPa
 		fmt.Println("batch until", timeFromTo, " page", page, "/", totalPages)
 		props["to"] = fmt.Sprint(timeFromTo.Unix())
 	}
+	fmt.Print("waiting for request limit...")
+	<-l.requestToken
+	fmt.Println(" ok")
 	res, err := l.api.User.GetRecentTracks(props)
 	if err != nil {
 		fmt.Println(err)
 		return -1, -1
 	}
-	l.TotalTracks = res.Total
 	goodTracks := 0
 	// mitigate some insanity
 	if len(res.Tracks) > res.Total && res.Total <= 2 {
@@ -173,15 +238,7 @@ func (l *Loader) loadTracks(doFrom bool, timeFromTo time.Time, page int, totalPa
 			trackTime = time.Unix(int64(i), 0)
 		}
 
-		// ignore duplicates by time
-		_, dup := l.times[trackTime]
-		if dup {
-			continue
-		}
-		// add to index
-		l.times[trackTime] = len(l.Tracks)
-
-		l.Tracks = append(l.Tracks, Track{
+		track := Track{
 			Artist:     t.Artist.Name,
 			ArtistMBID: t.Artist.Mbid,
 			Name:       t.Name,
@@ -189,17 +246,10 @@ func (l *Loader) loadTracks(doFrom bool, timeFromTo time.Time, page int, totalPa
 			Album:      t.Album.Name,
 			AlbumMBID:  t.Album.Mbid,
 			URL:        t.Url,
-			Date:       trackTime,
-		})
-		goodTracks++
-		fmt.Print(".")
-
-		// keep newest&oldest up to date
-		if trackTime.After(l.NewestTrack) {
-			l.NewestTrack = trackTime
 		}
-		if trackTime.Before(l.OldestTrack) {
-			l.OldestTrack = trackTime
+		if l.AddScrobble(track, trackTime) {
+			goodTracks++
+			fmt.Print(".")
 		}
 	}
 	fmt.Println()
