@@ -322,7 +322,7 @@ func (l *Loader) StartLoadingTags(fin chan<- bool) {
 }
 
 func (l *Loader) LoadTags(t Track) map[string]int {
-	for {
+	for tries := 0; tries < 5; tries++ {
 		props := lastfm.P{"autocorrect": 1}
 		if t.MBID != "" {
 			props["mbid"] = t.MBID
@@ -335,6 +335,9 @@ func (l *Loader) LoadTags(t Track) map[string]int {
 		res, err := l.api.Track.GetTopTags(props)
 		if err != nil {
 			fmt.Println("[tags]", err)
+			if strings.Contains(err.Error(), "not found") {
+				return nil
+			}
 			continue
 		}
 		m := map[string]int{}
@@ -347,6 +350,7 @@ func (l *Loader) LoadTags(t Track) map[string]int {
 		}
 		return m
 	}
+	return nil
 }
 
 func p(err error) {
