@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"encoding/json"
@@ -9,31 +9,25 @@ import (
 	"github.com/cfstras/lfmnn/load"
 )
 
-type Main struct {
-	loader *load.Loader
+var (
+	Loader *load.Loader
 	config map[string]string
-}
+)
 
-func main() {
-	var m Main
+func init() {
+	loadConfig()
+	defer saveConfig()
 
-	m.LoadConfig()
-	defer m.SaveConfig()
-
-	if m.config["username"] == "" {
+	if config["username"] == "" {
 		fmt.Println("Please set a username in config.json")
 		return
 	}
-	m.loader = load.NewLoader(m.config["username"], m.config["apikey"], m.config["secret"])
+	Loader = load.NewLoader(config["username"],
+		config["apikey"], config["secret"])
 	//m.loader.Auth() // not needed
-	m.loader.LoadState()
-	defer m.loader.SaveState()
-
-	m.loader.LoadTracksAndTags()
-
 }
 
-func (m *Main) LoadConfig() {
+func loadConfig() {
 	// defaults
 	defaults := map[string]string{
 		"apikey":   "",
@@ -41,23 +35,23 @@ func (m *Main) LoadConfig() {
 		"username": "",
 	}
 	if _, err := os.Stat("config.json"); os.IsNotExist(err) {
-		m.config = defaults
+		config = defaults
 		return
 	}
 	b, err := ioutil.ReadFile("config.json")
 	p(err)
-	err = json.Unmarshal(b, &m.config)
+	err = json.Unmarshal(b, &config)
 	p(err)
 
 	for k, v := range defaults {
-		if _, ok := m.config[k]; !ok {
-			m.config[k] = v
+		if _, ok := config[k]; !ok {
+			config[k] = v
 		}
 	}
 }
 
-func (m *Main) SaveConfig() {
-	b, err := json.MarshalIndent(m.config, "", "  ")
+func saveConfig() {
+	b, err := json.MarshalIndent(config, "", "  ")
 	p(err)
 	p(ioutil.WriteFile("config.json", b, 0666))
 }

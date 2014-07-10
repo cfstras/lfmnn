@@ -4,7 +4,9 @@ export GOPATH
 
 all: build
 
-FILES := load/*.go ffnn/*.go cmd/*/*.go
+FILES := load/*.go ffnn/*.go config/*.go cmd/*/*.go
+
+BASEPATH := github.com/cfstras/lfmnn
 
 .PHONY: fix
 fix:
@@ -12,14 +14,15 @@ fix:
 	goimports -l -w $(FILES)
 
 .PHONY: build
-build: github.com/cfstras/lfmnn/cmd/load-lastfm \
-		github.com/cfstras/lfmnn/cmd/testnn
+build: $(BASEPATH)/cmd/load \
+		$(BASEPATH)/cmd/testnn \
+		$(BASEPATH)/cmd/fmnn
 
-.PHONY: github.com/cfstras/lfmnn/cmd/%
-github.com/cfstras/lfmnn/cmd/%:
+.PHONY: $(BASEPATH)/cmd/%
+$(BASEPATH)/cmd/%:
 	go build -o bin/$(@F) $@
 
-cmd/%: build github.com/cfstras/lfmnn/cmd/%
+cmd/%: build $(BASEPATH)/cmd/%
 	bin/$(@F)
 
 .PHONY: clean
