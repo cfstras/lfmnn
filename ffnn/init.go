@@ -18,7 +18,10 @@ func New(inputs, hiddenLayers, outputs, hiddenLayerSize int) NN {
 		NumInputs:             inputs,
 		NumOutputs:            outputs,
 		NumHiddenLayers:       hiddenLayers,
-		NeuronsPerHiddenLayer: hiddenLayerSize}
+		NeuronsPerHiddenLayer: hiddenLayerSize,
+
+		Bias: -1,
+	}
 
 	// create layers, hidden + in + out
 	n.Layers = make([][]Neuron, hiddenLayers+2)

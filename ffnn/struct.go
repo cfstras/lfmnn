@@ -13,5 +13,7 @@ type NN struct {
 	NumHiddenLayers       int
 	NeuronsPerHiddenLayer int
 
+	Bias float32
+
 	Layers [][]Neuron
 }
