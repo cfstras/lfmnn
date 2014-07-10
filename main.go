@@ -26,14 +26,11 @@ func main() {
 	}
 	m.loader = load.NewLoader(m.config["username"], m.config["apikey"], m.config["secret"])
 	//m.loader.Auth() // not needed
-	m.loader.Load()
-	defer m.loader.Save()
+	m.loader.LoadState()
+	defer m.loader.SaveState()
 
-	wait := make(chan bool)
-	m.loader.StartLoadingTags(wait)
-	m.loader.LoadTracks()
+	m.loader.LoadTracksAndTags()
 
-	<-wait
 }
 
 func (m *Main) LoadConfig() {

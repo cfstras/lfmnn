@@ -13,6 +13,10 @@ import (
 	"github.com/skratchdot/open-golang/open"
 )
 
+// Type for the Scrobble map
+type TimeToIntMap map[int64]int
+
+// Holds the data for a single Track
 type Track struct {
 	Artist, ArtistMBID string
 	Name               string
@@ -20,33 +24,35 @@ type Track struct {
 	Album, AlbumMBID   string
 	URL                string
 
-	// value is last.fm "count", 0-100
+	// Value is from last.fm "count", 0-100
 	Tags map[string]int
 }
 
+// Holds all data and things a Loader needs
 type Loader struct {
-	apikey, secret string
-	username       string
-	filename       string
-	api            *lastfm.Api
-	requestToken   <-chan bool
+	apikey, secret    string
+	username          string
+	filename          string
+	api               *lastfm.Api
+	requestToken      <-chan bool
+	tagLoadingStarted bool
 
+	// list of all Tracks
 	Tracks []Track
-	// index (url fragment) -> tracks[index]
+	// index from url fragment to track index
 	TracksMap map[string]int
-	// index unixtime -> tracks[index]
-	Scrobbles map[int64]int `json:"-"`
+	// map from unixtime to track index
+	Scrobbles TimeToIntMap
 
+	// Newest and Oldest loaded Scrobble
 	NewestTrack, OldestTrack time.Time
-
-	// for json
-	ScrobblesJSON map[string]int `json:"Scrobbles"`
 
 	// stores indices into Tracks
 	tagLoadQueueOld chan int
 	tagLoadQueueNew chan int
 }
 
+// Create a new Loader, with set username, API key and API secret.
 func NewLoader(username, apikey, secret string) *Loader {
 	l := &Loader{apikey: apikey, secret: secret,
 		username: username,
@@ -62,25 +68,26 @@ func NewLoader(username, apikey, secret string) *Loader {
 
 	l.api = lastfm.New(apikey, secret)
 
-	// limit outgoing requests
+	// create channel for rate-limiting
 	tokens := make(chan bool, 20)
 	go func(in <-chan time.Time, out chan<- bool) {
-		// every second,
+		// every fifth of a second,
 		for _ = range in {
-			// try to add 5 tokens
-			for i := 0; i < 5; i++ {
-				select {
-				case tokens <- true:
-				default:
-				}
+			// try to add a token, drop if full.
+			select {
+			case tokens <- true:
+			default:
 			}
 		}
-	}(time.Tick(time.Second), tokens)
+	}(time.Tick(time.Second/5), tokens)
 	l.requestToken = tokens
 
 	return l
 }
 
+// Authenticate against last.fm API.
+//
+// Only necessary for some functions.
 func (l *Loader) Auth() {
 	token, err := l.api.GetToken()
 	p(err)
@@ -94,8 +101,10 @@ func (l *Loader) Auth() {
 	p(err)
 }
 
-// Loads all tracks from config
-func (l *Loader) Load() {
+// Loads all tracks and tags from config.
+//
+// The file used is determined by the configured username.
+func (l *Loader) LoadState() {
 	if _, err := os.Stat(l.filename); os.IsNotExist(err) {
 		return
 	}
@@ -103,25 +112,12 @@ func (l *Loader) Load() {
 	b, err := ioutil.ReadFile(l.filename)
 	p(err)
 	p(json.Unmarshal(b, &l))
-
-	// convert times back to int64s
-	l.Scrobbles = make(map[int64]int)
-	for k, v := range l.ScrobblesJSON {
-		i, err := strconv.ParseInt(k, 10, 64)
-		p(err)
-		l.Scrobbles[i] = v
-	}
 	fmt.Println(" ok")
 }
 
 // Save current state
-func (l *Loader) Save() {
+func (l *Loader) SaveState() {
 	fmt.Print("Saving...")
-	// convert times to strings
-	l.ScrobblesJSON = make(map[string]int)
-	for k, v := range l.Scrobbles {
-		l.ScrobblesJSON[fmt.Sprint(k)] = v
-	}
 
 	b, err := json.MarshalIndent(l, "", "  ")
 	p(err)
@@ -129,10 +125,43 @@ func (l *Loader) Save() {
 	fmt.Println(" ok")
 }
 
-// Loads tracks as far as the eye can see.
-// Returns the number of tracks loaded
-func (l *Loader) LoadTracks() int {
+func (m TimeToIntMap) MarshalJSON() ([]byte, error) {
+	// convert times to strings
+	m2 := make(map[string]int)
+	for k, v := range m {
+		m2[fmt.Sprint(k)] = v
+	}
+	return json.Marshal(m2)
+}
+
+func (m TimeToIntMap) UnmarshalJSON(data []byte) error {
+	// convert times back to int64s
+	var m2 map[string]int
+	err := json.Unmarshal(data, &m2)
+	if err != nil {
+		return err
+	}
+	for k, v := range m2 {
+		i, err := strconv.ParseInt(k, 10, 64)
+		if err != nil {
+			return err
+		}
+		m[i] = v
+	}
+	return nil
+}
+
+// Incrementally loads tracks and tags from last.fm.
+//
+// Returns the number of tracks loaded.
+func (l *Loader) LoadTracksAndTags() int {
 	fmt.Println("Loading tracks from last.fm")
+
+	var wait chan bool
+	if !l.tagLoadingStarted {
+		wait = make(chan bool)
+		l.startLoadingTags(wait)
+	}
 
 	total := 0
 	got := 1
@@ -176,9 +205,17 @@ func (l *Loader) LoadTracks() int {
 	fmt.Println("----")
 
 	close(l.tagLoadQueueNew)
+
+	if wait != nil {
+		fmt.Println("Finishing tag loading...")
+		<-wait
+	}
 	return got
 }
 
+// Adds a scrobble manually to the local scrobble list.
+//
+// Does not submit to last.fm.
 func (l *Loader) AddScrobble(track Track, date time.Time) bool {
 	// ignore duplicates by time
 	_, dup := l.Scrobbles[date.Unix()]
@@ -271,7 +308,7 @@ func (l *Loader) loadTracks(doFrom bool, timeFromTo time.Time, page int, totalPa
 	return goodTracks, res.TotalPages
 }
 
-func (l *Loader) StartLoadingTags(fin chan<- bool) {
+func (l *Loader) startLoadingTags(fin chan<- bool) {
 	go func(in chan<- int) {
 		for i, v := range l.Tracks {
 			if v.Tags == nil {
@@ -306,7 +343,7 @@ func (l *Loader) StartLoadingTags(fin chan<- bool) {
 			fmt.Println()
 		}
 		if done%100 == 0 {
-			l.Save()
+			l.SaveState()
 		}
 	}
 
@@ -321,6 +358,10 @@ func (l *Loader) StartLoadingTags(fin chan<- bool) {
 	}()
 }
 
+// Loads tags for a single track from last.fm
+//
+// If t.MBID is set, only the MBID is used. Otherwise, t.Name and t.Artist are
+// used.
 func (l *Loader) LoadTags(t Track) map[string]int {
 	for tries := 0; tries < 5; tries++ {
 		props := lastfm.P{"autocorrect": 1}
