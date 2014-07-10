@@ -4,7 +4,7 @@ export GOPATH
 
 all: build run
 
-FILES := *.go load/*.go
+FILES := *.go load/*.go cmd/*/*.go
 
 .PHONY: fix
 fix:
@@ -12,18 +12,21 @@ fix:
 	goimports -l -w $(FILES)
 
 .PHONY: build
-build:
-	mkdir -p bin
-	go build -o bin/lfmnn
+build: github.com/cfstras/lfmnn/cmd/load-lastfm
+
+.PHONY: github.com/cfstras/lfmnn/cmd/%
+github.com/cfstras/lfmnn/cmd/%:
+	go build -o bin/$(@F) $@
 
 .PHONY: run
 run: build
-	bin/lfmnn
+	bin/load-lastfm
 
 .PHONY: clean
 clean:
 	rm -rf src/github.com/{shkh,skratchdot} src/code.google.com \
 		pkg bin
+
 
 .PHONY: deps
 deps:
