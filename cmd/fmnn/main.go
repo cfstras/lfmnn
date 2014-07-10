@@ -13,6 +13,9 @@ func main() {
 	defer loader.SaveState()
 	loader.LoadTracksAndTags()
 
+	tags := loader.TopTags(20)
+	fmt.Println(tags)
+
 	nn := ffnn.New(3, 1, 3, 2)
 
 	inp := []float32{1, 1, 1}

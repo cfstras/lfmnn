@@ -168,12 +168,17 @@ func (l *Loader) LoadTracksAndTags() int {
 	page := 1
 	pages := -1
 	t := l.OldestTrack
+	tries := 5
 
 	// fetch up until the oldest track we have
 	for got > 0 {
 		got, pages = l.loadTracks(false, t, page, pages)
 		if got == -1 && pages == -1 {
 			got = 1
+			tries--
+			if tries == 0 {
+				break
+			}
 			continue //retry
 		}
 		page++
@@ -183,12 +188,17 @@ func (l *Loader) LoadTracksAndTags() int {
 	page = 1
 	got = 1
 	t = l.NewestTrack
+	tries = 5
 
 	// fetch up behind the latest track we have
 	for got > 0 {
 		got, pages = l.loadTracks(true, t, page, pages)
 		if got == -1 && pages == -1 {
 			got = 1
+			tries--
+			if tries == 0 {
+				break
+			}
 			continue //retry
 		}
 		page++
@@ -210,6 +220,10 @@ func (l *Loader) LoadTracksAndTags() int {
 		fmt.Println("Finishing tag loading...")
 		<-wait
 	}
+	fmt.Println("----")
+	fmt.Println("Total tags: ", len(l.TagsFloat()))
+	fmt.Println("Top 5 tags: ", l.TopTags(5))
+	fmt.Println("----")
 	return got
 }
 
