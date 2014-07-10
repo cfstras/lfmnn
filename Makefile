@@ -2,9 +2,9 @@
 GOPATH := $(CURDIR)
 export GOPATH
 
-all: build run
+all: build
 
-FILES := *.go load/*.go cmd/*/*.go
+FILES := load/*.go ffnn/*.go cmd/*/*.go
 
 .PHONY: fix
 fix:
@@ -12,15 +12,15 @@ fix:
 	goimports -l -w $(FILES)
 
 .PHONY: build
-build: github.com/cfstras/lfmnn/cmd/load-lastfm
+build: github.com/cfstras/lfmnn/cmd/load-lastfm \
+		github.com/cfstras/lfmnn/cmd/testnn
 
 .PHONY: github.com/cfstras/lfmnn/cmd/%
 github.com/cfstras/lfmnn/cmd/%:
 	go build -o bin/$(@F) $@
 
-.PHONY: run
-run: build
-	bin/load-lastfm
+cmd/%: build github.com/cfstras/lfmnn/cmd/%
+	bin/$(@F)
 
 .PHONY: clean
 clean:
