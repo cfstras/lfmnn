@@ -1,5 +1,6 @@
 tracks-*.json
 config.json
+test-*.json
 
 bin/
 pkg/
