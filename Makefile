@@ -1,5 +1,5 @@
 
-GOPATH := $(CURDIR)
+GOPATH := $(shell which cygpath >/dev/null && cygpath -w $(CURDIR) || echo $(CURDIR))
 export GOPATH
 
 all: build

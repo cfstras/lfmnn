@@ -389,7 +389,7 @@ func (l *Loader) LoadTags(t Track) map[string]int {
 
 		res, err := l.api.Track.GetTopTags(props)
 		if err != nil {
-			fmt.Println("[tags]", err)
+			fmt.Println("[tags]", err, "request properties:", props)
 			if strings.Contains(err.Error(), "not found") {
 				return nil
 			}
