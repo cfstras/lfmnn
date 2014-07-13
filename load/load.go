@@ -159,6 +159,7 @@ func (l *Loader) LoadTracksAndTags() int {
 
 	var wait chan bool
 	if !l.tagLoadingStarted {
+		l.tagLoadingStarted = true
 		wait = make(chan bool)
 		l.startLoadingTags(wait)
 	}
@@ -349,7 +350,7 @@ func (l *Loader) startLoadingTags(fin chan<- bool) {
 
 		if done%25 == 0 {
 			total := len(l.tagLoadQueueNew) + len(l.tagLoadQueueOld)
-			fmt.Print("[tags] got ", done, " / ", total)
+			fmt.Print("[tags] got ", done, " / ", total, "left")
 			if len(l.tagLoadQueueNew)+1 >= cap(l.tagLoadQueueNew) ||
 				len(l.tagLoadQueueOld)+1 >= cap(l.tagLoadQueueOld) {
 				fmt.Print("+")

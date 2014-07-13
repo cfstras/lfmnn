@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 
@@ -19,8 +18,7 @@ func init() {
 	defer saveConfig()
 
 	if config["username"] == "" {
-		fmt.Println("Please set a username in config.json")
-		return
+		panic("Please set a username in config.json")
 	}
 	Loader = load.NewLoader(config["username"],
 		config["apikey"], config["secret"])
