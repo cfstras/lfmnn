@@ -1,0 +1,153 @@
+<!doctype html>
+<!-- The Time Machine GitHub pages theme was designed and developed by Jon Rohan, on Feb 7, 2012. -->
+<!-- Follow him for fun. http://twitter.com/jonrohan. Tail his code on http://github.com/jonrohan -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  <link rel="stylesheet" href="stylesheets/stylesheet.css" media="screen"/>
+  <link rel="stylesheet" href="stylesheets/pygment_trac.css"/>
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+  <script type="text/javascript" src="javascripts/script.js"></script>
+
+  <title>lfmnn</title>
+  <meta name="description" content="Repository for stuff related to machine learning. Focused around last.fm and Neural Networks.">
+
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+</head>
+
+<body>
+
+  <div class="wrapper">
+    <header>
+      <h1 class="title">lfmnn</h1>
+    </header>
+    <div id="container">
+      <p class="tagline">Repository for stuff related to machine learning. Focused around last.fm and Neural Networks.</p>
+      <div id="main" role="main">
+        <div class="download-bar">
+        <div class="inner">
+          <a href="https://github.com/cfstras/lfmnn/tarball/master" class="download-button tar"><span>Download</span></a>
+          <a href="https://github.com/cfstras/lfmnn/zipball/master" class="download-button zip"><span>Download</span></a>
+          <a href="https://github.com/cfstras/lfmnn" class="code">View lfmnn on GitHub</a>
+        </div>
+        <span class="blc"></span><span class="trc"></span>
+        </div>
+        <article class="markdown-body">
+          <h2>
+<a name="lfmnn" class="anchor" href="#lfmnn"><span class="octicon octicon-link"></span></a>lfmnn</h2>
+
+<p><img src="blend-1.png" alt="blend-1"><img src="blend-2.png" alt="blend-2"></p>
+
+<p>Repository for stuff related to machine learning. Focused around last.fm and
+Neural Networks.</p>
+
+<h2>
+<a name="commands" class="anchor" href="#commands"><span class="octicon octicon-link"></span></a>commands</h2>
+
+<p>There are some commands in the <code>cmd/</code> folder. They do the following:</p>
+
+<h3>
+<a name="load" class="anchor" href="#load"><span class="octicon octicon-link"></span></a>load</h3>
+
+<p>Wrapper for the <a href="#load"><em>load</em></a> package.</p>
+
+<p>Start with <code>./b run load</code>.</p>
+
+<h3>
+<a name="stat" class="anchor" href="#stat"><span class="octicon octicon-link"></span></a>stat</h3>
+
+<p>Loads the tag statistics fetched with <em>load</em> and displays them using
+<a href="#bars"><em>bars</em></a>.</p>
+
+<p>Start with <code>./b run stat</code>.</p>
+
+<h3>
+<a name="testnn" class="anchor" href="#testnn"><span class="octicon octicon-link"></span></a>testnn</h3>
+
+<p>Play-around command for using the <a href="#ffnn"><em>ffnn</em></a> package. Can generate images
+or graphs.</p>
+
+<p>Generates images to <code>image.png</code></p>
+
+<p>Start with <code>./b run testnn</code>.</p>
+
+<h3>
+<a name="fmnn" class="anchor" href="#fmnn"><span class="octicon octicon-link"></span></a>fmnn</h3>
+
+<p>Should at some point use the tags loaded from last.fm to generate a user profile
+with ffnn.</p>
+
+<p>Start with <code>./b run fmnn</code>.</p>
+
+<h2>
+<a name="packages" class="anchor" href="#packages"><span class="octicon octicon-link"></span></a>packages</h2>
+
+<p>This repository is comprised of a few packages:</p>
+
+<h3>
+<a name="bars" class="anchor" href="#bars"><span class="octicon octicon-link"></span></a>bars</h3>
+
+<p>A simple ncurses-like CLI for displaying a set of <em>(string, float)</em> tuples
+and scrolling through them.</p>
+
+<h3>
+<a name="ffnn" class="anchor" href="#ffnn"><span class="octicon octicon-link"></span></a>ffnn</h3>
+
+<p>Simplistic Feed-Forward Neural Network.</p>
+
+<h3>
+<a name="load-1" class="anchor" href="#load-1"><span class="octicon octicon-link"></span></a>load</h3>
+
+<p>A last.fm tracks and tags scraper.</p>
+
+<h4>
+<a name="setup" class="anchor" href="#setup"><span class="octicon octicon-link"></span></a>setup</h4>
+
+<ol>
+<li>Get last.fm API keys</li>
+<li>Run once: <code>./b run load</code>
+</li>
+<li>Open up <code>config.json</code>, fill in apikey, secret and last.fm username</li>
+<li>Run again: <code>./b run load</code><br>
+This will take some time.</li>
+</ol><p>When finished, open up <code>tracks-{your username}.json</code>.
+Warning: this file will be big.</p>
+
+<h2>
+<a name="contact--usage" class="anchor" href="#contact--usage"><span class="octicon octicon-link"></span></a>contact / usage</h2>
+
+<p>These packages are available for your pleasure. If you find them particularly
+interesting or for some other reason want to contact me, feel free!</p>
+
+<p>c <em>ät</em> cfs.im</p>
+
+<h2>
+<a name="license" class="anchor" href="#license"><span class="octicon octicon-link"></span></a>license</h2>
+
+<p>GNU GPLv3.</p>
+        </article>
+      </div>
+    </div>
+    <footer>
+      <div class="owner">
+      <p><a href="https://github.com/cfstras" class="avatar"><img src="https://avatars3.githubusercontent.com/u/1156864?s=60" width="48" height="48"/></a> <a href="https://github.com/cfstras">cfstras</a> maintains <a href="https://github.com/cfstras/lfmnn">lfmnn</a></p>
+
+
+      </div>
+      <div class="creds">
+        <small>This page generated using <a href="http://pages.github.com/">GitHub Pages</a><br/>theme by <a href="https://twitter.com/jonrohan/">Jon Rohan</a></small>
+      </div>
+    </footer>
+  </div>
+  <div class="current-section">
+    <a href="#top">Scroll to top</a>
+    <a href="https://github.com/cfstras/lfmnn/tarball/master" class="tar">tar</a><a href="https://github.com/cfstras/lfmnn/zipball/master" class="zip">zip</a><a href="" class="code">source code</a>
+    <p class="name"></p>
+  </div>
+
+  
+</body>
+</html>
