@@ -2,7 +2,12 @@ package ffnn
 
 import (
 	"math/rand"
+	"time"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 func (n *Neuron) Init(numInputs int) {
 	// one extra for the bias
@@ -23,27 +28,24 @@ func New(inputs, hiddenLayers, outputs, hiddenLayerSize int) *NN {
 		Bias: -1,
 	}
 
-	// create layers, hidden + in + out
-	n.Layers = make([][]Neuron, hiddenLayers+2)
+	// create layers, hidden + out
+	n.Layers = make([][]Neuron, hiddenLayers+1)
 
 	// init neurons
 	for i := range n.Layers {
 		var num, ins int
 		switch {
-		case i == 0: // input neurons
-			num = inputs
-			ins = 1
-		case i == (hiddenLayers + 1): // output neurons
+		case i == hiddenLayers: // output neurons
 			num = outputs
 			if hiddenLayers == 0 {
 				ins = inputs
 			} else {
 				ins = hiddenLayerSize
 			}
-		case i == 1: // first layer of hidden neurons
+		case i == 0: // first layer of hidden neurons
 			num = hiddenLayerSize
 			ins = inputs
-		case i > 1 && i < (hiddenLayers+1): // later hidden neurons
+		case i > 0 && i < (hiddenLayers): // later hidden neurons
 			num = hiddenLayerSize
 			ins = hiddenLayerSize
 		}

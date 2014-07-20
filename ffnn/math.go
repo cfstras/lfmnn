@@ -1,14 +1,27 @@
 package ffnn
 
 import (
+	"fmt"
 	m "math"
 )
+
+var Logging = false
 
 func Sigmoid(x float32) float32 {
 	a := float64(x)
 	p := 1.0
 	v := 1.0 / (1.0 + m.Exp(-a/p))
 	return float32(v)
+}
+
+func Flip(x float32) float32 {
+	if x > 0.01 {
+		return 1
+	}
+	if x <= 0.01 && x > -0.01 {
+		return 0
+	}
+	return -1
 }
 
 func MaxI(v ...int) int {
@@ -42,12 +55,14 @@ func (nn *NN) Update(input []float32) []float32 {
 
 	// copy input
 	copy(in, input)
+	log("---")
 
 	// iterate all layers
-	for _, layer := range nn.Layers {
+	for layerI, layer := range nn.Layers {
 		// set size of output
 		out = out[:len(layer)]
 
+		log("layer in:", in)
 		// iterate all neurons
 		for i, neuron := range layer {
 			var accum float32
@@ -55,6 +70,7 @@ func (nn *NN) Update(input []float32) []float32 {
 
 			// iterate all inputs except bias
 			for j, w := range neuron.Weights[:neuron.NumInputs] {
+				log("layer", layerI, "neuron", i, "input", j, "weight", w, "in", in[j])
 				accum += w * in[j]
 			}
 			// add bias
@@ -62,7 +78,9 @@ func (nn *NN) Update(input []float32) []float32 {
 
 			// set output
 			out[i] = Sigmoid(accum)
+			//out[i] = Flip(accum)
 		}
+		log("layer out:", out)
 
 		// swap in&out
 		in, out = out, in
@@ -70,4 +88,10 @@ func (nn *NN) Update(input []float32) []float32 {
 
 	// we swapped in&out, so output is at in
 	return in
+}
+
+func log(s ...interface{}) {
+	if Logging {
+		fmt.Println(s...)
+	}
 }
