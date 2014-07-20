@@ -16,4 +16,6 @@ type NN struct {
 	Bias float32
 
 	Layers [][]Neuron
+
+	bufs [2][]float32
 }

@@ -6,15 +6,15 @@ import (
 
 func (n *Neuron) Init(numInputs int) {
 	// one extra for the bias
-	n.NumInputs = numInputs + 1
-	n.Weights = make([]float32, n.NumInputs)
+	n.NumInputs = numInputs
+	n.Weights = make([]float32, n.NumInputs+1)
 	for i := range n.Weights {
 		n.Weights[i] = rand.Float32()
 	}
 }
 
-func New(inputs, hiddenLayers, outputs, hiddenLayerSize int) NN {
-	n := NN{
+func New(inputs, hiddenLayers, outputs, hiddenLayerSize int) *NN {
+	n := &NN{
 		NumInputs:             inputs,
 		NumOutputs:            outputs,
 		NumHiddenLayers:       hiddenLayers,
@@ -33,14 +33,18 @@ func New(inputs, hiddenLayers, outputs, hiddenLayerSize int) NN {
 		case i == 0: // input neurons
 			num = inputs
 			ins = 1
+		case i == (hiddenLayers + 1): // output neurons
+			num = outputs
+			if hiddenLayers == 0 {
+				ins = inputs
+			} else {
+				ins = hiddenLayerSize
+			}
 		case i == 1: // first layer of hidden neurons
 			num = hiddenLayerSize
 			ins = inputs
 		case i > 1 && i < (hiddenLayers+1): // later hidden neurons
 			num = hiddenLayerSize
-			ins = hiddenLayerSize
-		case i == (hiddenLayers + 1): // output neurons
-			num = outputs
 			ins = hiddenLayerSize
 		}
 

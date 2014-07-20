@@ -13,6 +13,9 @@ func Sigmoid(x float32) float32 {
 
 func MaxI(v ...int) int {
 	m := v[0]
+	if len(v) == 1 {
+		return m
+	}
 	for _, i := range v[1:] {
 		if i > m {
 			m = i
@@ -26,14 +29,16 @@ func (nn *NN) Update(input []float32) []float32 {
 		panic("NN.Update has to be called with input of size NN.NumInputs!")
 	}
 
-	// make two buffers
-	var bufs [2][]float32
-	for i := range bufs {
-		bufs[i] = make([]float32, nn.NumInputs, MaxI(nn.NumInputs, nn.NumOutputs,
-			nn.NeuronsPerHiddenLayer))
+	if nn.bufs[0] == nil {
+		// make two buffers
+		for i := range nn.bufs {
+			nn.bufs[i] = make([]float32, nn.NumInputs, MaxI(nn.NumInputs,
+				nn.NumOutputs, nn.NeuronsPerHiddenLayer))
+		}
 	}
-	in := bufs[0]
-	out := bufs[1]
+
+	in := nn.bufs[0]
+	out := nn.bufs[1]
 
 	// copy input
 	copy(in, input)
@@ -46,13 +51,14 @@ func (nn *NN) Update(input []float32) []float32 {
 		// iterate all neurons
 		for i, neuron := range layer {
 			var accum float32
+			accum = 0
 
 			// iterate all inputs except bias
-			for j, w := range neuron.Weights[:neuron.NumInputs-1] {
+			for j, w := range neuron.Weights[:neuron.NumInputs] {
 				accum += w * in[j]
 			}
 			// add bias
-			accum += neuron.Weights[neuron.NumInputs-1] * nn.Bias
+			accum += neuron.Weights[neuron.NumInputs] * nn.Bias
 
 			// set output
 			out[i] = Sigmoid(accum)
