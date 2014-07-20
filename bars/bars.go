@@ -82,13 +82,15 @@ func (c *context) Draw() {
 			tb.SetCell(p+1, line, c, tb.ColorCyan, tb.ColorBlack)
 		}
 
-		var lwf float32
+		var lwf float64
 		if c.minVal < 0 {
-			lwf = (v - c.minVal) / (c.maxVal - c.minVal)
+			lwf = float64((v - c.minVal) / (c.maxVal - c.minVal))
+		} else if c.log {
+			lwf = math.Log10(float64(v)) / math.Log10(float64(c.maxVal))
 		} else {
-			lwf = v / c.maxVal
+			lwf = float64(v / c.maxVal)
 		}
-		lw := int(lwf * float32(c.res.X-c.lineStart-1))
+		lw := int(lwf * float64(c.res.X-c.lineStart-1))
 		for j := 0; j < lw; j++ {
 			tb.SetCell(c.lineStart+j, line, '█', tb.ColorWhite, tb.ColorBlack)
 		}
@@ -128,7 +130,7 @@ func (c *context) Handle(ev tb.Event) {
 			fallthrough
 		case tb.KeyEnter:
 			c.end = true
-		case 'l':
+		case tb.KeySpace:
 			c.log = !c.log
 		}
 		c.offset.Y = mu.MinI(c.offset.Y, c.data.Len()-c.res.Y+2)

@@ -1,7 +1,6 @@
 package load
 
 import (
-	"math"
 	"sort"
 )
 
@@ -60,21 +59,22 @@ func (l *Loader) TagsFloatMap() map[string]float32 {
 		}
 	}
 
-	// find min, max
-	var max, min float32
-	min = math.MaxFloat32
-	for _, c := range tags {
-		if c > max {
-			max = c
+	/*
+		// find min, max
+		var max, min float32
+		min = math.MaxFloat32
+		for _, c := range tags {
+			if c > max {
+				max = c
+			}
+			if c < min {
+				min = c
+			}
 		}
-		if c < min {
-			min = c
-		}
-	}
 
-	// normalize to [0..1]
-	for t, c := range tags {
-		tags[t] = (c - min) / (max - min)
-	}
+		// normalize to [0..1]
+		for t, c := range tags {
+			tags[t] = (c - min) / (max - min)
+		}*/
 	return tags
 }
