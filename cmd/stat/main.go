@@ -10,5 +10,5 @@ func main() {
 
 	tags := loader.TagsFloat()
 
-	bars.Graph(tags[:30])
+	bars.Graph(tags)
 }
