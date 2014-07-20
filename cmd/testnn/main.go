@@ -25,11 +25,11 @@ func nnImageTest() {
 	// train a FFNN to output an image given x,y
 	nn := load()
 	if nn == nil {
-		nn = ffnn.New(2, 0, 3, 5)
+		nn = ffnn.New(2, 0, 3, 4)
 	}
 	defer save(nn)
 
-	w, h := 256, 256
+	w, h := 128, 128
 
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
 	inp := []float32{0, 0}
@@ -39,7 +39,7 @@ func nnImageTest() {
 			inp[0], inp[1] = float32(x)/float32(w)*8-4, float32(y)/float32(w)*8-4
 			out := nn.Update(inp)
 			img.Set(x, y, color.RGBA{
-				uint8(out[0] * 255), uint8(out[0] * 255), uint8(out[0] * 255),
+				uint8(out[0] * 255), uint8(out[1] * 255), uint8(out[2] * 255),
 				255})
 		}
 	}
@@ -53,7 +53,7 @@ func graph() {
 	// draw three graphs
 	nn := load()
 	if nn == nil {
-		nn = ffnn.New(1, 0, 3, 3)
+		nn = ffnn.New(1, 1, 3, 3)
 	}
 	defer save(nn)
 
