@@ -1,6 +1,7 @@
 package load
 
 import (
+	"math"
 	"sort"
 )
 
@@ -48,7 +49,7 @@ func (l *Loader) TagsFloat() tagSlice {
 	return tags
 }
 
-// Returns all tags, with float popularity in the range [0..1]
+// Returns all tags, with float popularity summed up
 func (l *Loader) TagsFloatMap() map[string]float32 {
 	tags := make(map[string]float32)
 
@@ -58,23 +59,29 @@ func (l *Loader) TagsFloatMap() map[string]float32 {
 			tags[tag] += float32(count)
 		}
 	}
-
-	/*
-		// find min, max
-		var max, min float32
-		min = math.MaxFloat32
-		for _, c := range tags {
-			if c > max {
-				max = c
-			}
-			if c < min {
-				min = c
-			}
-		}
-
-		// normalize to [0..1]
-		for t, c := range tags {
-			tags[t] = (c - min) / (max - min)
-		}*/
 	return tags
+}
+
+type NV struct {
+	N string
+	V float32
+}
+
+func Normalize(d []NV) {
+	// find min, max
+	var max, min float32
+	min = math.MaxFloat32
+	for _, c := range d {
+		if c.V > max {
+			max = c.V
+		}
+		if c.V < min {
+			min = c.V
+		}
+	}
+
+	// normalize to [0..1]
+	for t, c := range d {
+		d[t].V = (c.V - min) / (max - min)
+	}
 }
