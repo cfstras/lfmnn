@@ -1,7 +1,14 @@
 ## lfmnn
 
-![blend-1](blend-1.png)
-![blend-2](blend-2.png)
+<p align="center">
+<img src="imgs/blend-1.png">
+<img src="imgs/blend-2.png">
+<br>
+<img src="imgs/abs-1.png">
+<img src="imgs/abs-2.png">
+<img src="imgs/abs-3.png">
+<img src="imgs/abs-4.png">
+</p>
 
 Repository for stuff related to machine learning. Focused around last.fm and
 Neural Networks.
@@ -28,7 +35,7 @@ Start with `./b run stat`.
 Play-around command for using the [_ffnn_](#ffnn) package. Can generate images
 or graphs.
 
-Generates images to `image.png`
+Generates images to `image-<number>.png`
 
 Start with `./b run testnn`.
 
