@@ -18,7 +18,7 @@ import (
 	"code.google.com/p/plotinum/plotter"
 	"code.google.com/p/plotinum/plotutil"
 
-	"github.com/thoj/go-galib"
+	"github.com/booherbg/go-galib"
 )
 
 func main() {
