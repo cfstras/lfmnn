@@ -8,6 +8,7 @@ import (
 	"image/draw"
 	"image/png"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	_ "net/http/pprof"
 
@@ -31,7 +32,7 @@ func nnImageTest() {
 	// train a FFNN to output an image given x,y
 	var nn *ffnn.NN //load()
 	if nn == nil {
-		nn = ffnn.New(2, 1, 3, 8)
+		nn = ffnn.New(2, 2, 3, 16)
 	}
 	defer save(nn)
 
@@ -62,11 +63,11 @@ func nnImageTest() {
 	m := ga.NewMultiMutator()
 	m.Add(new(ga.GAShiftMutator))
 	m.Add(new(ga.GASwitchMutator))
-	m.Add(ga.NewGAGaussianMutator(2, 0))
+	m.Add(ga.NewGAGaussianMutator(1, 0))
 
 	param := ga.GAParameter{
 		Initializer: new(ga.GARandomInitializer),
-		Selector:    ga.NewGATournamentSelector(0.5, 10),
+		Selector:    ga.NewGATournamentSelector(0.2, 20),
 		Breeder:     new(ga.GA2PointBreeder),
 		Mutator:     m,
 		PMutate:     0.3,
@@ -79,10 +80,11 @@ func nnImageTest() {
 	}
 
 	saveImage := func() {
-		fmt.Println("saving...")
+		name := "image-" + fmt.Sprint(rand.Int()) + ".png"
+		fmt.Println("saving", name)
 		buf := bytes.NewBuffer(nil)
 		png.Encode(buf, img)
-		ioutil.WriteFile("image.png", buf.Bytes(), 0644)
+		ioutil.WriteFile(name, buf.Bytes(), 0644)
 	}
 
 	makeImage := func() {
@@ -140,18 +142,18 @@ func nnImageTest() {
 		}
 		fmt.Println("contrast:", contrast)
 		scores++
-		if scores%100 == 0 {
+		if scores%50 == 0 {
 			saveImage()
 		}
 		return contrast
 	}
 
-	genome := ga.NewFloatGenome(make([]float64, genomeLength), contrast, 0, 2e9)
+	genome := ga.NewFloatGenome(make([]float64, genomeLength), contrast, -20, 20)
 
-	gao.Init(100, genome)
+	gao.Init(20, genome)
 
 	fmt.Println("running...")
-	gao.Optimize(200)
+	gao.Optimize(100)
 
 	fmt.Println("best score:", gao.Best().Score())
 
