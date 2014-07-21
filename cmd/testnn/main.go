@@ -5,48 +5,159 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
-	"image/color"
+	"image/draw"
 	"image/png"
 	"io/ioutil"
+	"net/http"
+	_ "net/http/pprof"
 
 	"github.com/cfstras/lfmnn/ffnn"
 
 	"code.google.com/p/plotinum/plot"
 	"code.google.com/p/plotinum/plotter"
 	"code.google.com/p/plotinum/plotutil"
+
+	"github.com/thoj/go-galib"
 )
 
 func main() {
+	go http.ListenAndServe(":6060", nil)
+
 	//graph()
 	nnImageTest()
 }
 
 func nnImageTest() {
 	// train a FFNN to output an image given x,y
-	nn := load()
+	var nn *ffnn.NN //load()
 	if nn == nil {
-		nn = ffnn.New(2, 0, 3, 4)
+		nn = ffnn.New(2, 1, 3, 8)
 	}
 	defer save(nn)
 
-	w, h := 128, 128
-
-	img := image.NewRGBA(image.Rect(0, 0, w, h))
-	inp := []float32{0, 0}
-
-	for x := 0; x < w; x++ {
-		for y := 0; y < h; y++ {
-			inp[0], inp[1] = float32(x)/float32(w)*8-4, float32(y)/float32(w)*8-4
-			out := nn.Update(inp)
-			img.Set(x, y, color.RGBA{
-				uint8(out[0] * 255), uint8(out[1] * 255), uint8(out[2] * 255),
-				255})
+	genomeLength := 0
+	for _, l := range nn.Layers {
+		for _, n := range l {
+			genomeLength += len(n.Weights)
 		}
 	}
 
-	buf := bytes.NewBuffer(nil)
-	png.Encode(buf, img)
-	ioutil.WriteFile("image.png", buf.Bytes(), 0644)
+	w, h := 128, 128
+	rect := image.Rect(0, 0, w, h)
+
+	img := image.NewRGBA(rect)
+	inputImage := image.NewRGBA(rect)
+	inp := []float32{0, 0}
+
+	fmt.Println("loading input...")
+	inpB, err := ioutil.ReadFile("input.png")
+	p(err)
+	inpBuf := bytes.NewBuffer(inpB)
+	img1, err := png.Decode(inpBuf)
+	p(err)
+	draw.Draw(inputImage, rect, img1, img1.Bounds().Min, draw.Src)
+
+	fmt.Println("ga init...")
+
+	m := ga.NewMultiMutator()
+	m.Add(new(ga.GAShiftMutator))
+	m.Add(new(ga.GASwitchMutator))
+	m.Add(ga.NewGAGaussianMutator(2, 0))
+
+	param := ga.GAParameter{
+		Initializer: new(ga.GARandomInitializer),
+		Selector:    ga.NewGATournamentSelector(0.5, 10),
+		Breeder:     new(ga.GA2PointBreeder),
+		Mutator:     m,
+		PMutate:     0.3,
+		PBreed:      0.4}
+
+	gao := ga.NewGA(param)
+
+	coord := func(img *image.RGBA, x, y int) int {
+		return (y-img.Rect.Min.Y)*img.Stride + (x-img.Rect.Min.X)*4
+	}
+
+	saveImage := func() {
+		fmt.Println("saving...")
+		buf := bytes.NewBuffer(nil)
+		png.Encode(buf, img)
+		ioutil.WriteFile("image.png", buf.Bytes(), 0644)
+	}
+
+	makeImage := func() {
+		fmt.Println("generating image...")
+		for x := 0; x < w; x++ {
+			for y := 0; y < h; y++ {
+				inp[0], inp[1] = float32(x)/float32(w)*8-4, float32(y)/float32(w)*8-4
+				out := nn.Update(inp)
+
+				i := coord(img, x, y)
+				img.Pix[i], img.Pix[i+1], img.Pix[i+2], img.Pix[i+3] =
+					uint8(out[0]*255), uint8(out[1]*255), uint8(out[2]*255), 255
+			}
+		}
+	}
+	setNN := func(g *ga.GAFloatGenome) {
+		i := 0
+		for li := range nn.Layers {
+			for ni := range nn.Layers[li] {
+				for vi := range nn.Layers[li][ni].Weights {
+					nn.Layers[li][ni].Weights[vi] = float32(g.Gene[i])
+					i++
+				}
+			}
+		}
+	}
+
+	scores := 0
+	contrast := func(g *ga.GAFloatGenome) float64 {
+		// set values
+		setNN(g)
+
+		makeImage()
+
+		// calc contrast to input
+		var contrast float64
+		for x := 0; x < w; x++ {
+			for y := 0; y < h; y++ {
+				i := coord(img, x, y)
+				a_r, a_g, a_b := inputImage.Pix[i], inputImage.Pix[i+1], inputImage.Pix[i+2]
+				b_r, b_g, b_b := img.Pix[i], img.Pix[i+1], img.Pix[i+2]
+				dr, dg, db := float64(a_r)-float64(b_r),
+					float64(a_g)-float64(b_g), float64(a_b)-float64(b_b)
+				if dr < 0 {
+					dr *= -1
+				}
+				if dg < 0 {
+					dg *= -1
+				}
+				if db < 0 {
+					db *= -1
+				}
+				contrast += dr + dg + db
+			}
+		}
+		fmt.Println("contrast:", contrast)
+		scores++
+		if scores%100 == 0 {
+			saveImage()
+		}
+		return contrast
+	}
+
+	genome := ga.NewFloatGenome(make([]float64, genomeLength), contrast, 0, 2e9)
+
+	gao.Init(100, genome)
+
+	fmt.Println("running...")
+	gao.Optimize(200)
+
+	fmt.Println("best score:", gao.Best().Score())
+
+	setNN(gao.Best().(*ga.GAFloatGenome))
+	makeImage()
+	saveImage()
 }
 
 func graph() {
@@ -112,5 +223,11 @@ func save(nn *ffnn.NN) {
 			fmt.Println(err)
 			return
 		}
+	}
+}
+
+func p(err error) {
+	if err != nil {
+		panic(err)
 	}
 }
