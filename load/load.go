@@ -69,18 +69,7 @@ func NewLoader(username, apikey, secret string) *Loader {
 	l.api = lastfm.New(apikey, secret)
 
 	// create channel for rate-limiting
-	tokens := make(chan bool, 20)
-	go func(in <-chan time.Time, out chan<- bool) {
-		// every fifth of a second,
-		for _ = range in {
-			// try to add a token, drop if full.
-			select {
-			case tokens <- true:
-			default:
-			}
-		}
-	}(time.Tick(time.Second/5), tokens)
-	l.requestToken = tokens
+	l.requestToken = time.Tick(time.Second / 5)
 
 	return l
 }
