@@ -14,9 +14,9 @@ import (
 
 	"github.com/cfstras/lfmnn/ffnn"
 
-	"code.google.com/p/plotinum/plot"
-	"code.google.com/p/plotinum/plotter"
-	"code.google.com/p/plotinum/plotutil"
+	"gonum.org/v1/plot"
+	"gonum.org/v1/plot/plotter"
+	"gonum.org/v1/plot/plotutil"
 
 	"github.com/booherbg/go-galib"
 )

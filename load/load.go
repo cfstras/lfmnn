@@ -34,7 +34,7 @@ type Loader struct {
 	username          string
 	filename          string
 	api               *lastfm.Api
-	requestToken      <-chan bool
+	requestToken      <-chan time.Time
 	tagLoadingStarted bool
 
 	// list of all Tracks
@@ -339,7 +339,7 @@ func (l *Loader) startLoadingTags(fin chan<- bool) {
 
 		if done%25 == 0 {
 			total := len(l.tagLoadQueueNew) + len(l.tagLoadQueueOld)
-			fmt.Print("[tags] got ", done, " / ", total, "left")
+			fmt.Print("[tags] got ", done, " / ", total, " left")
 			if len(l.tagLoadQueueNew)+1 >= cap(l.tagLoadQueueNew) ||
 				len(l.tagLoadQueueOld)+1 >= cap(l.tagLoadQueueOld) {
 				fmt.Print("+")
