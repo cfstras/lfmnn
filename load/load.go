@@ -50,6 +50,8 @@ type Loader struct {
 	// stores indices into Tracks
 	tagLoadQueueOld chan int
 	tagLoadQueueNew chan int
+
+	notFoundTagMBIDs map[string]bool
 }
 
 // Create a new Loader, with set username, API key and API secret.
@@ -64,6 +66,8 @@ func NewLoader(username, apikey, secret string) *Loader {
 
 		tagLoadQueueOld: make(chan int, 1024*64),
 		tagLoadQueueNew: make(chan int, 1024*64),
+
+		notFoundTagMBIDs: make(map[string]bool),
 	}
 
 	l.api = lastfm.New(apikey, secret)
@@ -367,30 +371,39 @@ func (l *Loader) startLoadingTags(fin chan<- bool) {
 // If t.MBID is set, only the MBID is used. Otherwise, t.Name and t.Artist are
 // used.
 func (l *Loader) LoadTags(t Track) map[string]int {
-	for tries := 0; tries < 5; tries++ {
-		props := lastfm.P{"autocorrect": 1}
+	for tries := 0; tries < 3; tries++ {
+		props := lastfm.P{}
 		if t.MBID != "" {
+			if nf, ok := l.notFoundTagMBIDs[t.MBID]; ok && nf {
+				return nil
+			}
 			props["mbid"] = t.MBID
 		} else {
 			props["track"] = t.Name
 			props["artist"] = t.Artist
+			props["autocorrect"] = 1
 		}
 		<-l.requestToken // wait for request limit
 
-		res, err := l.api.Track.GetTopTags(props)
+		res, err := l.api.Track.GetInfo(props)
 		if err != nil {
 			fmt.Println("[tags]", err, "request properties:", props)
-			if strings.Contains(err.Error(), "not found") {
+			if strings.Contains(err.Error(), "not found") ||
+				err.Error() == "EOF" {
+				if t.MBID != "" {
+					l.notFoundTagMBIDs[t.MBID] = true
+				}
 				return nil
 			}
 			continue
 		}
 		m := map[string]int{}
-		for _, v := range res.Tags {
-			i, err := strconv.Atoi(v.Count)
-			if err != nil {
-				i = 1
-			}
+		for _, v := range res.TopTags {
+			//i, err := strconv.Atoi(v.Count)
+			//if err != nil {
+			//	i = 1
+			//}
+			i := 1
 			m[v.Name] = i
 		}
 		return m
