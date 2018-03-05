@@ -653,39 +653,74 @@ func (m *Dense) Apply(fn func(i, j int, v float64) float64, a Matrix) {
 // RankOne performs a rank-one update to the matrix a and stores the result
 // in the receiver. If a is zero, see Outer.
 //  m = a + alpha * x * y'
-func (m *Dense) RankOne(a Matrix, alpha float64, x, y *VecDense) {
+func (m *Dense) RankOne(a Matrix, alpha float64, x, y Vector) {
 	ar, ac := a.Dims()
-	if x.Len() != ar {
+	xr, xc := x.Dims()
+	if xr != ar || xc != 1 {
 		panic(ErrShape)
 	}
-	if y.Len() != ac {
+	yr, yc := y.Dims()
+	if yr != ac || yc != 1 {
 		panic(ErrShape)
 	}
 
-	m.checkOverlap(x.asGeneral())
-	m.checkOverlap(y.asGeneral())
-
-	var w Dense
-	if m == a {
-		w = *m
+	if a != m {
+		aU, _ := untranspose(a)
+		if rm, ok := aU.(RawMatrixer); ok {
+			m.checkOverlap(rm.RawMatrix())
+		}
 	}
-	w.reuseAs(ar, ac)
 
-	// Copy over to the new memory if necessary
-	if m != a {
-		w.Copy(a)
+	var xmat, ymat blas64.Vector
+	fast := true
+	xU, _ := untranspose(x)
+	if rv, ok := xU.(RawVectorer); ok {
+		xmat = rv.RawVector()
+		m.checkOverlap((&VecDense{mat: xmat, n: x.Len()}).asGeneral())
+	} else {
+		fast = false
 	}
-	blas64.Ger(alpha, x.mat, y.mat, w.mat)
-	*m = w
+	yU, _ := untranspose(y)
+	if rv, ok := yU.(RawVectorer); ok {
+		ymat = rv.RawVector()
+		m.checkOverlap((&VecDense{mat: ymat, n: y.Len()}).asGeneral())
+	} else {
+		fast = false
+	}
+
+	if fast {
+		if m != a {
+			m.reuseAs(ar, ac)
+			m.Copy(a)
+		}
+		blas64.Ger(alpha, xmat, ymat, m.mat)
+		return
+	}
+
+	m.reuseAs(ar, ac)
+	for i := 0; i < ar; i++ {
+		for j := 0; j < ac; j++ {
+			m.set(i, j, a.At(i, j)+alpha*x.AtVec(i)*y.AtVec(j))
+		}
+	}
 }
 
-// Outer calculates the outer product of x and y, and stores the result
-// in the receiver.
+// Outer calculates the outer product of the column vectors x and y,
+// and stores the result in the receiver.
 //  m = alpha * x * y'
 // In order to update an existing matrix, see RankOne.
-func (m *Dense) Outer(alpha float64, x, y *VecDense) {
-	r := x.Len()
-	c := y.Len()
+func (m *Dense) Outer(alpha float64, x, y Vector) {
+	xr, xc := x.Dims()
+	if xc != 1 {
+		panic(ErrShape)
+	}
+	yr, yc := y.Dims()
+	if yc != 1 {
+		panic(ErrShape)
+	}
+
+	r := xr
+	c := yr
 
 	// Copied from reuseAs with use replaced by useZeroed
 	// and a final zero of the matrix elements if we pass
@@ -707,13 +742,36 @@ func (m *Dense) Outer(alpha float64, x, y *VecDense) {
 		m.capCols = c
 	} else if r != m.mat.Rows || c != m.mat.Cols {
 		panic(ErrShape)
+	}
+
+	var xmat, ymat blas64.Vector
+	fast := true
+	xU, _ := untranspose(x)
+	if rv, ok := xU.(RawVectorer); ok {
+		xmat = rv.RawVector()
+		m.checkOverlap((&VecDense{mat: xmat, n: x.Len()}).asGeneral())
 	} else {
-		m.checkOverlap(x.asGeneral())
-		m.checkOverlap(y.asGeneral())
+		fast = false
+	}
+	yU, _ := untranspose(y)
+	if rv, ok := yU.(RawVectorer); ok {
+		ymat = rv.RawVector()
+		m.checkOverlap((&VecDense{mat: ymat, n: y.Len()}).asGeneral())
+	} else {
+		fast = false
+	}
+
+	if fast {
 		for i := 0; i < r; i++ {
 			zero(m.mat.Data[i*m.mat.Stride : i*m.mat.Stride+c])
 		}
+		blas64.Ger(alpha, xmat, ymat, m.mat)
+		return
 	}
 
-	blas64.Ger(alpha, x.mat, y.mat, m.mat)
+	for i := 0; i < r; i++ {
+		for j := 0; j < c; j++ {
+			m.set(i, j, alpha*x.AtVec(i)*y.AtVec(j))
+		}
+	}
 }
